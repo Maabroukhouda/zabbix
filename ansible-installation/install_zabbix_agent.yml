@@ -1,0 +1,39 @@
+---
+- name: Installer et configurer Zabbix Agent sur Debian 12
+  hosts: proxmox
+  become: yes
+
+  vars:
+    zabbix_server_ip: "10.4.1.33"   # IP du serveur Zabbix
+    zabbix_hostname: "{{ inventory_hostname }}"  # Nom d'hôte dynamique
+
+  tasks:
+    - name: Ajouter le dépôt Zabbix officiel
+      apt:
+        deb: "https://repo.zabbix.com/zabbix/7.4/release/debian/pool/main/z/zabbix-release/zabbix-release_latest_7.4+debian12_all.deb"
+        state: present
+
+    - name: Mettre à jour la liste des paquets
+      apt:
+        update_cache: yes
+
+    - name: Installer Zabbix Agent
+      apt:
+        name: zabbix-agent
+        state: present
+
+    - name: Configurer /etc/zabbix/zabbix_agentd.conf
+      lineinfile:
+        path: /etc/zabbix/zabbix_agentd.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '^Server=',       line: "Server={{ zabbix_server_ip }}" }
+        - { regexp: '^ServerActive=', line: "ServerActive={{ zabbix_server_ip }}" }
+        - { regexp: '^Hostname=',     line: "Hostname={{ zabbix_hostname }}" }
+
+    - name: Activer et démarrer Zabbix Agent
+      systemd:
+        name: zabbix-agent
+        state: started
+        enabled: yes
