@@ -1,0 +1,89 @@
+# installation Zabbix Agent avec Ansible sur Proxmox (Debian 12)
+
+
+**1. Installation d’Ansible sur la machine de contrôle**
+* Mettre à jour les paquets et installer Ansible :
+`sudo apt update
+sudo apt install ansible -y
+`
+
+* Créer un répertoire pour les fichiers Ansible:
+```
+mkdir ~/ansible
+cd ~/ansible
+```
+* Générer une clé SSH pour l’authentification sans mot de passe:
+
+`ssh-keygen -t rsa -b 4096`
+* pier la clé publique vers chaque serveur Proxmox (remplacer proxmox-ip par l’IP de chaque serveur:
+ `ssh-copy-id -i ~/ansible/id_rsa.pub root@proxmox-ip `
+
+* ester la connexion SSH sans mot de passe :
+`ssh -i root@proxmox-ip `
+![test-conn](../assets/test-conn.png)
+
+
+**2.   Configuration de l’inventaire Ansible**
+* Créer un fichier `inventory.ini` listant tous les serveurs Proxmox à gérer
+![image](https://hackmd.io/_uploads/rkPEs5_uex.png)
+* Tester la connectivité avec tous les nœuds
+`ansible -i inventory.ini all -m ping`
+![Capture d'écran 2025-08-12 104213](https://hackmd.io/_uploads/HJnwhcudgg.png)
+
+
+**3.   Création du playbook Ansible**
+
+Créer un fichier `install_zabbix_agent.yml` avec le contenu suivant 
+
+```
+---
+- name: Installer et configurer Zabbix Agent sur Debian 12
+  hosts: proxmox
+  become: yes
+
+  vars:
+    zabbix_server_ip: "10.4.1.33"   # IP du serveur Zabbix
+    zabbix_hostname: "{{ inventory_hostname }}"  # Nom d'hôte dynamique
+
+  tasks:
+    - name: Ajouter le dépôt Zabbix officiel
+      apt:
+        deb: "https://repo.zabbix.com/zabbix/7.4/release/debian/pool/main/z/zabbix-release/zabbix-release_latest_7.4+debian12_all.deb"
+        state: present
+
+    - name: Mettre à jour la liste des paquets
+      apt:
+        update_cache: yes
+
+    - name: Installer Zabbix Agent
+      apt:
+        name: zabbix-agent
+        state: present
+
+    - name: Configurer /etc/zabbix/zabbix_agentd.conf
+      lineinfile:
+        path: /etc/zabbix/zabbix_agentd.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '^Server=',       line: "Server={{ zabbix_server_ip }}" }
+        - { regexp: '^ServerActive=', line: "ServerActive={{ zabbix_server_ip }}" }
+        - { regexp: '^Hostname=',     line: "Hostname={{ zabbix_hostname }}" }
+
+    - name: Activer et démarrer Zabbix Agent
+      systemd:
+        name: zabbix-agent
+        state: started
+        enabled: yes
+```
+**4. Exécution du playbook**
+* Lancer le playbook depuis la machine Ansible
+`ansible-playbook -i inventory.ini install_zabbix_agent.yml`
+
+**5.  Ajout des hôtes dans le tableau de bord Zabbix**
+* Se connecter à l’interface web de Zabbix.
+* Ajouter les hôtes correspondant aux serveurs Proxmox.
+
+
+Cette image montre la liste des hôtes ajoutés.
+![image](https://hackmd.io/_uploads/SyAQ3qOdgx.png)
