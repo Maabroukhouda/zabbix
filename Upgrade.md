@@ -104,7 +104,7 @@ sudo apt autoremove -y
 ```
 ![image](/assets/pglist2.png)
 
-`ALTER USER zabbix WITH PASSWORD 'Pr0xym-1T';`
+`ALTER USER zabbix WITH PASSWORD 'zabbix';`
 ## 4. Upgrade OS
 
 ```
