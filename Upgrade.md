@@ -69,7 +69,7 @@ DELETE FROM trends_uint WHERE clock < extract(epoch from now() - interval '1 yea
 ## 2. PostgreSQL Backup
 
 ```
-ssh postgres@10.4.1.34
+ssh postgres@IP
  pg_dumpall -f ~/pg13_full_backup_$(date +%Y%m%d).sql
 ```
 ## 3. PostgreSQL Upgrade (13 → 17 )
